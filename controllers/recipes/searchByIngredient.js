@@ -3,23 +3,34 @@ const Recipe = require("../../models/recipe");
 const Ingredient = require("../../models/ingredient");
 
 const searchByIngredient = async (req, res) => {
-  const { ingredient } = req.query;
-  const findIngredient = await Ingredient.find({ ttl: ingredient });
-  const ingredientId = findIngredient.map((ingredient) => ingredient._id)[0];
-  console.log(ingredientId[0]);
-  const result = await Recipe.find({
-    ingredients: {
-      $elemMatch: { id: ingredientId },
-    },
-  });
-  if (!result) {
+  const { query, page = 0, limit = 10 } = req.query;
+  const startIndex = page * limit;
+
+  if (!query) {
     res.status(400);
-    throw new Error("Bad Request");
+    throw new Error("Query is required");
   }
-  res.json({
-    status: 200,
-    message: "success",
+
+  const findIngredient = await Ingredient.find({ ttl: { '$regex': query, $options: 'i' } });
+  if (!findIngredient.length) {
+    res.status(200).json({
+      data: [],
+      totalCount: 0
+    });
+  }
+  const ingredientIds = findIngredient.map((ingredient) => ingredient._id);
+
+  const mongoQuery = {
+    ingredients: {
+      $elemMatch: { id: { $in: ingredientIds } },
+    },
+  };
+  const result = await Recipe.find(mongoQuery).skip(startIndex).limit(limit);
+  const totalCount = await Recipe.count(mongoQuery);
+
+  res.status(200).json({
     data: result,
+    totalCount: totalCount
   });
 };
 

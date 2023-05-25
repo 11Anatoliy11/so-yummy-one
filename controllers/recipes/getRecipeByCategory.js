@@ -1,19 +1,22 @@
 // recipes/:category
 const Recipe = require("../../models/recipe");
-// const categories = require("../../data/categories");
-const getRecipeByCategory = async (req, res) => {
-  const { category } = req.params;
 
-  const result = await Recipe.find({ category: `${category}` })
+const getRecipeByCategory = async (req, res) => {
+  const { category, page = 0, limit = 8 } = req.params;
+  const startIndex = page * limit;
+
+  const result = await Recipe.find({ category: category })
     .sort({
       createdAt: -1,
     })
-    .limit(8);
+    .skip(startIndex)
+    .limit(limit);
 
-  res.json({
-    status: 200,
-    message: "success",
+  const totalCount = await Recipe.count({ category: category });
+
+  res.status(200).json({
     data: result,
+    totalCount: totalCount,
   });
 };
 module.exports = getRecipeByCategory;
